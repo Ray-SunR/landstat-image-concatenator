@@ -5,6 +5,8 @@ import { getLandsatImages, concatenateImages, downloadImage, ImageInfo, getAvail
 import ImageGallery from './ImageGallery';
 import ConcatenationPreview from './ConcatenationPreview';
 import DraggablePreview from './DraggablePreview';
+import TextToImageGenerator from './TextToImageGenerator';
+import ImageReplacementModal from './ImageReplacementModal';
 
 interface SelectedImageInfo extends ImageInfo {
   selectionId: string;
@@ -21,6 +23,11 @@ export default function ImageConcatenator() {
   const [selectedFilter, setSelectedFilter] = useState<string>('ALL');
   const [availableLetters, setAvailableLetters] = useState<string[]>([]);
   const [draggedChipId, setDraggedChipId] = useState<string | null>(null);
+  const [isGeneratingFromText, setIsGeneratingFromText] = useState(false);
+  const [replacementModal, setReplacementModal] = useState<{
+    isOpen: boolean;
+    targetImage: SelectedImageInfo | null;
+  }>({ isOpen: false, targetImage: null });
 
   useEffect(() => {
     const images = getLandsatImages();
@@ -40,13 +47,88 @@ export default function ImageConcatenator() {
   }, [selectedFilter, allImages]);
 
   const handleImageSelect = (image: ImageInfo) => {
-    // Always add to selection (allowing duplicates)
-    const newSelection: SelectedImageInfo = {
-      ...image,
-      selectionId: `${image.id}-${Date.now()}-${Math.random()}`,
-      selectionOrder: selectedImages.length + 1
-    };
-    setSelectedImages(prev => [...prev, newSelection]);
+    // Check if this image is already selected
+    const existingSelection = selectedImages.find(selected => selected.id === image.id);
+    
+    if (existingSelection) {
+      // If image is already selected, open replacement modal
+      setReplacementModal({
+        isOpen: true,
+        targetImage: existingSelection
+      });
+    } else {
+      // Add new selection
+      const newSelection: SelectedImageInfo = {
+        ...image,
+        selectionId: `${image.id}-${Date.now()}-${Math.random()}`,
+        selectionOrder: selectedImages.length + 1
+      };
+      setSelectedImages(prev => [...prev, newSelection]);
+    }
+  };
+
+  const handleGenerateFromText = async (text: string) => {
+    setIsGeneratingFromText(true);
+    try {
+      // Clear current selection
+      setSelectedImages([]);
+      setConcatenatedImageUrl('');
+      
+      // Process each letter in the text
+      const letters = text.replace(/\s/g, '').split('');
+      const newSelections: SelectedImageInfo[] = [];
+      
+      letters.forEach((letter, index) => {
+        // Find all images for this letter
+        const letterImages = allImages.filter(img => img.letter === letter);
+        
+        if (letterImages.length > 0) {
+          // Randomly select one image for this letter
+          const randomImage = letterImages[Math.floor(Math.random() * letterImages.length)];
+          
+          const newSelection: SelectedImageInfo = {
+            ...randomImage,
+            selectionId: `${randomImage.id}-${Date.now()}-${Math.random()}-${index}`,
+            selectionOrder: index + 1
+          };
+          
+          newSelections.push(newSelection);
+        }
+      });
+      
+      setSelectedImages(newSelections);
+    } catch (error) {
+      console.error('Error generating from text:', error);
+      alert('Error generating images from text. Please try again.');
+    } finally {
+      setIsGeneratingFromText(false);
+    }
+  };
+
+  const handleReplaceImage = (targetSelectionId: string, newImage: ImageInfo) => {
+    setSelectedImages(prev => 
+      prev.map(selected => {
+        if (selected.selectionId === targetSelectionId) {
+          return {
+            ...newImage,
+            selectionId: selected.selectionId,
+            selectionOrder: selected.selectionOrder
+          };
+        }
+        return selected;
+      })
+    );
+  };
+
+  const handleReplaceFromPreview = (targetImage: SelectedImageInfo) => {
+    setReplacementModal({
+      isOpen: true,
+      targetImage: targetImage
+    });
+  };
+
+  const handleCloseReplacementModal = () => {
+    setReplacementModal({ isOpen: false, targetImage: null });
   };
 
   const handleRemoveSelection = (selectionId: string) => {
@@ -155,6 +237,13 @@ export default function ImageConcatenator() {
 
   return (
     <div className="space-y-8">
+      {/* Text to Image Generator */}
+      <TextToImageGenerator
+        allImages={allImages}
+        onGenerateFromText={handleGenerateFromText}
+        isProcessing={isGeneratingFromText}
+      />
+
       {/* Alphabet Filter */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h3 className="text-lg font-semibold mb-4 text-gray-800">Filter by Letter</h3>
@@ -195,6 +284,7 @@ export default function ImageConcatenator() {
           selectedImages={selectedImages}
           onReorder={handleReorderImages}
           onRemove={handleRemoveSelection}
+          onReplace={handleReplaceFromPreview}
           isProcessing={isGeneratingPreview}
         />
       )}
@@ -241,7 +331,7 @@ export default function ImageConcatenator() {
         {selectedImages.length > 0 && (
           <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border border-emerald-200">
             <p className="text-sm font-medium text-emerald-800 mb-3">
-              Selection Order (drag to reorder):
+              Selection Order (drag to reorder, click to replace):
             </p>
             <div className="flex flex-wrap gap-2">
               {selectedImages.map((selectedImage) => (
@@ -252,11 +342,13 @@ export default function ImageConcatenator() {
                   onDragEnd={handleDragEnd}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, selectedImage.selectionId)}
-                  className={`px-3 py-2 bg-white text-emerald-800 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm border border-emerald-200 transition-all duration-200 cursor-move ${
+                  onClick={() => setReplacementModal({ isOpen: true, targetImage: selectedImage })}
+                  className={`px-3 py-2 bg-white text-emerald-800 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm border border-emerald-200 transition-all duration-200 cursor-pointer ${
                     draggedChipId === selectedImage.selectionId
                       ? 'shadow-xl scale-105 opacity-75 border-emerald-500'
-                      : 'hover:shadow-md hover:scale-105'
+                      : 'hover:shadow-md hover:scale-105 hover:bg-emerald-50'
                   }`}
+                  title="Drag to reorder or click to replace"
                 >
                   <span className="text-gray-400 text-xs">⋮⋮</span>
                   <span className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
@@ -264,7 +356,10 @@ export default function ImageConcatenator() {
                   </span>
                   {selectedImage.name}
                   <button
-                    onClick={() => handleRemoveSelection(selectedImage.selectionId)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveSelection(selectedImage.selectionId);
+                    }}
                     className="ml-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 rounded-full w-5 h-5 flex items-center justify-center font-bold text-sm transition-colors"
                     title="Remove this selection"
                   >
@@ -274,7 +369,7 @@ export default function ImageConcatenator() {
               ))}
             </div>
             <p className="text-xs text-emerald-600 mt-2">
-              💡 Drag and drop the chips above to reorder your selection
+              💡 Drag and drop to reorder • Click chips to replace images • Click × to remove
             </p>
           </div>
         )}
@@ -285,6 +380,15 @@ export default function ImageConcatenator() {
         images={filteredImages}
         selectedImages={selectedImages}
         onImageSelect={handleImageSelect}
+      />
+
+      {/* Image Replacement Modal */}
+      <ImageReplacementModal
+        isOpen={replacementModal.isOpen}
+        onClose={handleCloseReplacementModal}
+        targetImage={replacementModal.targetImage}
+        availableImages={allImages}
+        onReplace={handleReplaceImage}
       />
     </div>
   );

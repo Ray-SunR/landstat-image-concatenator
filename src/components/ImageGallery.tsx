@@ -27,7 +27,7 @@ export default function ImageGallery({ images, selectedImages, onImageSelect }: 
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-semibold mb-6 text-gray-800">Landsat Images</h2>
       <p className="text-sm text-gray-600 mb-4">
-        Click on any image to add it to your selection. You can select the same image multiple times.
+        Click on any image to add it to your selection. Click on already selected images to replace them.
         Use the alphabet filter above to narrow down your choices.
       </p>
       
@@ -53,9 +53,13 @@ export default function ImageGallery({ images, selectedImages, onImageSelect }: 
                 </div>
               )}
               
-              {/* Add Button Indicator - More Subtle */}
-              <div className="absolute top-3 right-3 z-20 bg-white/90 backdrop-blur-sm text-emerald-600 rounded-full w-7 h-7 flex items-center justify-center text-lg font-bold shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 border border-emerald-200">
-                +
+              {/* Add/Replace Button Indicator */}
+              <div className={`absolute top-3 right-3 z-20 backdrop-blur-sm rounded-full w-7 h-7 flex items-center justify-center text-lg font-bold shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 border ${
+                selected 
+                  ? 'bg-orange-500/90 text-white border-orange-300' 
+                  : 'bg-white/90 text-emerald-600 border-emerald-200'
+              }`}>
+                {selected ? '↻' : '+'}
               </div>
               
               {/* Image Container with Elegant Selection Effect */}
