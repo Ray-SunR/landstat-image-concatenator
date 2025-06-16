@@ -5,7 +5,10 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
   images: {
     unoptimized: true
-  }
+  },
+  // Configure for GitHub Pages deployment
+  basePath: '/landstat-image-concatenator',
+  assetPrefix: '/landstat-image-concatenator/',
 };
 
 export default nextConfig;

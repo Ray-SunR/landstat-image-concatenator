@@ -149,7 +149,7 @@ export const getLandsatImages = (): ImageInfo[] => {
     images.push({
       id: `${item.letter.toLowerCase()}-${imageNumber}`,
       name: `${item.letter}${imageNumber}`,
-      src: `/landsat_images/${item.letter}/${item.filename}`,
+      src: `landsat_images/${item.letter}/${item.filename}`,
       letter: item.letter,
       description: item.description
     });
