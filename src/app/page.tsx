@@ -1,6 +1,7 @@
 'use client';
 
 import ImageConcatenator from '@/components/ImageConcatenator';
+import MadeWithLove from '@/components/MadeWithLove';
 
 export default function Home() {
   return (
@@ -16,6 +17,9 @@ export default function Home() {
         </p>
         <ImageConcatenator />
       </div>
+      
+      {/* Floating "Made with Love" component */}
+      <MadeWithLove />
     </div>
   );
 }
